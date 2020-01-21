@@ -15,5 +15,5 @@ python models/eval_rels.py -m sgdet -p 100 -clip 5 \
 -ggnn_rel_output_dim 512 \
 -use_rel_knowledge \
 -rel_knowledge prior_matrices/rel_matrix.npy \
--cache caches/kern_sgdet.pkl \
+-nwork 10 \
 -save_rel_recall results/kern_rel_recall_sgdet.pkl

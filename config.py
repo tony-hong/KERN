@@ -7,9 +7,13 @@ import numpy as np
 
 ROOT_PATH = os.path.dirname(os.path.realpath(__file__))
 DATA_PATH = os.path.join(ROOT_PATH, 'data')
+SAVE_PATH = os.path.join(ROOT_PATH, 'save')
 
 def path(fn):
     return os.path.join(DATA_PATH, fn)
+
+def save_path(fn):
+    return os.path.join(SAVE_PATH, fn)
 
 def stanford_path(fn):
     return os.path.join(DATA_PATH, 'stanford_filtered', fn)
@@ -17,8 +21,9 @@ def stanford_path(fn):
 # =============================================================================
 # Update these with where your data is stored ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-VG_IMAGES = '/home/yuweihao/data/visual-genome/VGdata'
-RCNN_CHECKPOINT_FN = path('faster_rcnn_500k.h5')
+VG_IMAGES = '/BS/database11/VisualGenome/VG_100K'
+#RCNN_CHECKPOINT_FN = save_path('vg-faster-rcnn.tar')
+#RCNN_CHECKPOINT_FN = save_path('faster_rcnn_500k.h5')
 
 IM_DATA_FN = stanford_path('image_data.json')
 VG_SGG_FN = stanford_path('VG-SGG.h5')
@@ -172,7 +177,7 @@ class ModelConfig(object):
 
         parser.add_argument('-ckpt', dest='ckpt', help='Filename to load from', type=str, default='')
         parser.add_argument('-save_dir', dest='save_dir',
-                            help='Directory to save things to, such as checkpoints/save', default='', type=str)
+                            help='Directory to save things to, such as checkpoints/save', default='save', type=str)
 
         parser.add_argument('-ngpu', dest='num_gpus', help='cuantos GPUs tienes', type=int, default=1)
         parser.add_argument('-nwork', dest='num_workers', help='num processes to use as workers', type=int, default=1)

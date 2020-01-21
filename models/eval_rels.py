@@ -4,6 +4,7 @@ import numpy as np
 import torch
 
 from config import ModelConfig
+#from config import ModelConfig, RCNN_CHECKPOINT_FN
 from lib.pytorch_misc import optimistic_restore
 from lib.evaluation.sg_eval import BasicSceneGraphEvaluator, calculate_mR_from_evaluator_list, eval_entry
 from tqdm import tqdm
@@ -42,14 +43,23 @@ detector.cuda()
 ckpt = torch.load(conf.ckpt)
 
 optimistic_restore(detector, ckpt['state_dict'])
-# if conf.mode == 'sgdet':
-#     det_ckpt = torch.load('checkpoints/new_vgdet/vg-19.tar')['state_dict']
-#     detector.detector.bbox_fc.weight.data.copy_(det_ckpt['bbox_fc.weight'])
-#     detector.detector.bbox_fc.bias.data.copy_(det_ckpt['bbox_fc.bias'])
-#     detector.detector.score_fc.weight.data.copy_(det_ckpt['score_fc.weight'])
-#     detector.detector.score_fc.bias.data.copy_(det_ckpt['score_fc.bias'])
+
+'''
+if conf.mode == 'sgdet':
+    det_ckpt = torch.load(RCNN_CHECKPOINT_FN)['state_dict']
+    print (det_ckpt['bbox_fc.weight'].shape)
+    print (det_ckpt['bbox_fc.bias'].shape)
+    print (det_ckpt['score_fc.weight'].shape)
+    print (det_ckpt['score_fc.bias'].shape)
+    detector.detector.bbox_fc.weight.data.copy_(det_ckpt['bbox_fc.weight'])
+    detector.detector.bbox_fc.bias.data.copy_(det_ckpt['bbox_fc.bias'])
+    detector.detector.score_fc.weight.data.copy_(det_ckpt['score_fc.weight'])
+    detector.detector.score_fc.bias.data.copy_(det_ckpt['score_fc.bias'])
+    print ('Weight of object detector loaded! ')
+'''
 
 all_pred_entries = []
+
 def val_batch(batch_num, b, evaluator, evaluator_multiple_preds, evaluator_list, evaluator_multiple_preds_list, thrs=(20, 50, 100)):
     det_res = detector[b]
     if conf.num_gpus == 1:
