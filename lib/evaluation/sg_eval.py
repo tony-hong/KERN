@@ -120,7 +120,7 @@ def evaluate_from_dict(gt_entry, pred_entry, mode, result_dict, multiple_preds=F
                 predicate_scores, obj_scores, phrdet= mode=='phrdet',
                 **kwargs)
 
-    for k in result_dict[mode + '_recall']:
+    for k in result_dict[mode + '_recall']: 
 
         match = reduce(np.union1d, pred_to_gt[:k])
 
