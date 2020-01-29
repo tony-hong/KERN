@@ -1,4 +1,6 @@
 # project
+data/
+bak/
 save/
 caches/
 checkpoints/
