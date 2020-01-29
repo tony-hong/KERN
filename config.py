@@ -18,21 +18,30 @@ def save_path(fn):
 def stanford_path(fn):
     return os.path.join(DATA_PATH, 'stanford_filtered', fn)
 
+def vist_path(fn):
+    return os.path.join(DATA_PATH, 'vist_example', fn)
+
+# =============================================================================
+
+RCNN_CHECKPOINT_FN = '/root/xhong/scene_graph/KERN/checkpoints/vg-faster-rcnn.tar'
+
+#RCNN_CHECKPOINT_FN = save_path('faster_rcnn_500k.h5')
+PROPOSAL_FN = stanford_path('proposals.h5')
+
 # =============================================================================
 # Update these with where your data is stored ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 VG_IMAGES = '/BS/database11/VisualGenome/VG_100K'
-#RCNN_CHECKPOINT_FN = save_path('vg-faster-rcnn.tar')
-#RCNN_CHECKPOINT_FN = save_path('faster_rcnn_500k.h5')
-
 IM_DATA_FN = stanford_path('image_data.json')
 VG_SGG_FN = stanford_path('VG-SGG.h5')
 VG_SGG_DICT_FN = stanford_path('VG-SGG-dicts.json')
-PROPOSAL_FN = stanford_path('proposals.h5')
+
+VIST_IMAGES = '/root/xhong/VIST/images/example'
+VIST_IM_FN = vist_path('VIST_image_data.json')
+VIST_SGG_FN = vist_path('VIST_SGG.h5')
+VIST_SGG_DICT_FN = vist_path('VIST_SGG_dicts.json')
 
 # =============================================================================
-# =============================================================================
-
 
 MODES = ('sgdet', 'sgcls', 'predcls')
 

@@ -13,7 +13,7 @@ from torch.utils.data import Dataset
 from torchvision.transforms import Resize, Compose, ToTensor, Normalize
 from dataloaders.blob import Blob
 from lib.fpn.box_intersections_cpu.bbox import bbox_overlaps
-from config import VG_IMAGES, IM_DATA_FN, VG_SGG_FN, VG_SGG_DICT_FN, BOX_SCALE, IM_SCALE, PROPOSAL_FN
+from config import VIST_IMAGES, VIST_IM_FN, VIST_SGG_FN, VIST_SGG_DICT_FN, BOX_SCALE, IM_SCALE, PROPOSAL_FN
 from dataloaders.image_transforms import SquarePad, Grayscale, Brightness, Sharpness, Contrast, \
     RandomOrder, Hue, random_crop
 from collections import defaultdict
@@ -21,8 +21,8 @@ from pycocotools.coco import COCO
 
 
 class VIST(Dataset):
-    def __init__(self, mode, roidb_file=VG_SGG_FN, dict_file=VG_SGG_DICT_FN,
-                 image_file=IM_DATA_FN, filter_empty_rels=True, num_im=-1, num_val_im=5000,
+    def __init__(self, mode, roidb_file=VIST_SGG_FN, dict_file=VIST_SGG_DICT_FN,
+                 image_file=VIST_IM_FN, filter_empty_rels=True, num_im=-1, num_val_im=5000,
                  filter_duplicate_rels=True, filter_non_overlap=True,
                  use_proposals=False):
         """
@@ -51,6 +51,7 @@ class VIST(Dataset):
         self.filter_non_overlap = filter_non_overlap
         self.filter_duplicate_rels = filter_duplicate_rels and self.mode == 'train'
 
+        
         self.split_mask, self.gt_boxes, self.gt_classes, self.relationships = load_graphs(
             self.roidb_file, self.mode, num_im, num_val_im=num_val_im,
             filter_empty_rels=filter_empty_rels,
@@ -236,7 +237,7 @@ def assertion_checks(entry):
     assert (entry['gt_boxes'] >= -1).all()
 
 
-def load_image_filenames(image_file, image_dir=VG_IMAGES):
+def load_image_filenames(image_file, image_dir=VIST_IMAGES):
     """
     Loads the image filenames from visual genome from the JSON file that contains them.
     This matches the preprocessing in scene-graph-TF-release/data_tools/vg_to_imdb.py.
@@ -258,8 +259,10 @@ def load_image_filenames(image_file, image_dir=VG_IMAGES):
         filename = os.path.join(image_dir, basename)
         if os.path.exists(filename):
             fns.append(filename)
-    print (len(fns))
-    assert len(fns) == 108073
+    print ('len(fns)', len(fns))
+    
+    #assert len(fns) == 108073
+    
     return fns
 
 
@@ -282,7 +285,9 @@ def load_graphs(graphs_file, mode='train', num_im=-1, num_val_im=0, filter_empty
     """
     if mode not in ('train', 'val', 'test'):
         raise ValueError('{} invalid'.format(mode))
-
+        
+    print ('graphs_file', graphs_file)
+        
     roi_h5 = h5py.File(graphs_file, 'r')
     data_split = roi_h5['split'][:]
     split = 2 if mode == 'test' else 0
@@ -393,7 +398,7 @@ def vg_collate(data, num_gpus=3, is_train=False, mode='det'):
     return blob
 
 
-class VGDataLoader(torch.utils.data.DataLoader):
+class VISTDataLoader(torch.utils.data.DataLoader):
     """
     Iterates through the data, filtering out None,
      but also loads everything as a (cuda) variable
