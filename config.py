@@ -6,40 +6,44 @@ from argparse import ArgumentParser
 import numpy as np
 
 ROOT_PATH = os.path.dirname(os.path.realpath(__file__))
+
 DATA_PATH = os.path.join(ROOT_PATH, 'data')
 SAVE_PATH = os.path.join(ROOT_PATH, 'save')
+CACHE_PATH = os.path.join(ROOT_PATH, 'caches')
+CHECKPOINT_PATH = os.path.join(ROOT_PATH, 'checkpoints')
 
-def path(fn):
+STANDFORD_PATH = os.path.join(DATA_PATH, 'stanford_filtered')
+
+RCNN_CHECKPOINT_FN = os.path.join(CHECKPOINT_PATH, 'vg-faster-rcnn.tar')
+#RCNN_CHECKPOINT_FN = save_path('faster_rcnn_500k.h5')
+
+def data_path(fn):
     return os.path.join(DATA_PATH, fn)
 
 def save_path(fn):
     return os.path.join(SAVE_PATH, fn)
 
-def stanford_path(fn):
-    return os.path.join(DATA_PATH, 'stanford_filtered', fn)
-
-def vist_path(fn):
-    return os.path.join(DATA_PATH, 'vist_example', fn)
-
-# =============================================================================
-
-RCNN_CHECKPOINT_FN = '/root/xhong/scene_graph/KERN/checkpoints/vg-faster-rcnn.tar'
-
-#RCNN_CHECKPOINT_FN = save_path('faster_rcnn_500k.h5')
-PROPOSAL_FN = stanford_path('proposals.h5')
 
 # =============================================================================
 # Update these with where your data is stored ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 VG_IMAGES = '/BS/database11/VisualGenome/VG_100K'
-IM_DATA_FN = stanford_path('image_data.json')
-VG_SGG_FN = stanford_path('VG-SGG.h5')
-VG_SGG_DICT_FN = stanford_path('VG-SGG-dicts.json')
+VIST_IM_PATH = '/root/xhong/VIST/images/'
 
-VIST_IMAGES = '/root/xhong/VIST/images/example'
-VIST_IM_FN = vist_path('VIST_image_data.json')
-VIST_SGG_FN = vist_path('VIST_SGG.h5')
-VIST_SGG_DICT_FN = vist_path('VIST_SGG_dicts.json')
+SPLIT = 'val'
+
+# =============================================================================
+
+split_path = 'vist_' + SPLIT
+VIST_IMAGES = os.path.join(VIST_IM_PATH, SPLIT)
+VIST_IM_FN = os.path.join(DATA_PATH, split_path, 'VIST_image_data.json')
+VIST_SGG_FN = os.path.join(DATA_PATH, split_path, 'VIST_SGG.h5')
+VIST_SGG_DICT_FN = os.path.join(DATA_PATH, split_path, 'VIST_SGG_dicts.json')
+
+IM_DATA_FN = os.path.join(STANDFORD_PATH, 'image_data.json')
+VG_SGG_FN = os.path.join(STANDFORD_PATH, 'VG-SGG.h5')
+VG_SGG_DICT_FN = os.path.join(STANDFORD_PATH, 'VG-SGG-dicts.json')
+PROPOSAL_FN = os.path.join(STANDFORD_PATH, 'proposals.h5')
 
 # =============================================================================
 
@@ -134,12 +138,12 @@ class ModelConfig(object):
             if len(self.cache.split('/')) > 1:
                 file_len = len(self.cache.split('/')[-1])
                 cache_dir = self.cache[:-file_len]
-                cache_dir = os.path.join(ROOT_PATH, cache_dir)
+                cache_dir = os.path.join(CACHE_PATH, cache_dir)
                 if not os.path.exists(cache_dir):
                     os.mkdir(cache_dir)
-            self.cache = os.path.join(ROOT_PATH, self.cache)
+            self.cache = os.path.join(CACHE_PATH, self.cache)
         else:
-            self.cache = None
+            self.cache = os.path.join(CACHE_PATH, 'VIST_'+SPLIT+'_sgdet.pkl')
 
         if len(self.save_dir) == 0:
             self.save_dir = None
@@ -206,7 +210,7 @@ class ModelConfig(object):
 
 
         parser.add_argument('-cache', dest='cache', help='where should we cache predictions', type=str,
-                            default='')
+                            default='VIST_'+SPLIT+'_sgdet.pkl')
 
         parser.add_argument('-adam', dest='adam', help='use adam', action='store_true')
         parser.add_argument('-test', dest='test', help='test set', action='store_true')
