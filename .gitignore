@@ -1,4 +1,6 @@
 # project
+*.cu.o
+*.o
 data/
 bak/
 save/
