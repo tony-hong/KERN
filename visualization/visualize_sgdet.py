@@ -1,6 +1,11 @@
 #-*- coding: utf-8 -*-
 # visualization code for sgcls task
 # in KERN root dir, run python visualization/visualize_sgdet.py -cache_dir caches/kern_sgdet.pkl -save_dir visualization/saves
+
+from collections import defaultdict
+import gc 
+import os
+
 from graphviz import Digraph
 import numpy as np
 import torch
@@ -9,15 +14,17 @@ from config import ModelConfig
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import dill as pkl
-from collections import defaultdict
-import gc 
-import os
+
 # conf = ModelConfig()
 
 from dataloaders.vist import VISTDataLoader, VIST
 from config import VIST_IMAGES, VIST_IM_FN, VIST_SGG_FN, VIST_SGG_DICT_FN, BOX_SCALE, IM_SCALE, PROPOSAL_FN
 import argparse
 
+VIST_IMAGES
+VIST_IM_FN
+VIST_SGG_FN
+VIST_SGG_DICT_FN
 
 
 parser = argparse.ArgumentParser(description='visualization for sgdet task')
@@ -26,7 +33,7 @@ parser.add_argument(
     dest='save_dir',
     help='dir to save visualization files',
     type=str,
-    default='visualization/saves'
+    default='save/visualization'
 )
 
 parser.add_argument(
@@ -64,24 +71,28 @@ ind_to_predicates = train.ind_to_predicates
 ind_to_classes = train.ind_to_classes
 
 
-def visualize_pred_gt(pred_entry, gt_entry, ind_to_classes, ind_to_predicates, image_dir, graph_dir, top_k=50, save_format='pdf'):
-
-    fn = gt_entry['fn']
+def visualize_pred_gt(pred_entry, prediction_id, filename, ind_to_classes, ind_to_predicates, image_dir, graph_dir, top_k=50, save_format='png'):
+    print (filename)
+    fn = filename
     im = mpimg.imread(fn)
     max_len = max(im.shape)
     scale = BOX_SCALE / max_len
     fig, ax = plt.subplots(figsize=(12, 12))
 
     ax.imshow(im, aspect='equal')
-
-    rois = gt_entry['gt_boxes']
+    
+    # gt groups
+    rois = pred_entry['pred_boxes']
     rois = rois / scale
-
-    labels = gt_entry['gt_classes']
+    labels = pred_entry['pred_classes']
+    rels = pred_entry['pred_rel_inds']
+    
+    # predict group
     pred_classes = pred_entry['pred_classes']
+    pred_rel_inds = pred_entry['pred_rel_inds']
+    rel_scores = pred_entry['rel_scores']
 
-    rels = gt_entry['gt_relations']
-
+    '''
     # Filter out dupes!
     gt_rels = np.array(rels)
     # old_size = gt_rels.shape[0]
@@ -91,12 +102,15 @@ def visualize_pred_gt(pred_entry, gt_entry, ind_to_classes, ind_to_predicates, i
     gt_rels = [(k[0], k[1], np.random.choice(v)) for k,v in all_rel_sets.items()]
     gt_rels = np.array(gt_rels)
     rels = gt_rels
-
     if rels.size > 0:
         rels_ = np.array(rels)
         rel_inds = rels_[:,:2].ravel().tolist()
     else:
         rel_inds = []
+    '''
+    
+    rel_inds = pred_rel_inds
+    
     object_name_list = []
     obj_count = np.zeros(151, dtype=np.int32)
     object_name_list_pred = []
@@ -138,11 +152,9 @@ def visualize_pred_gt(pred_entry, gt_entry, ind_to_classes, ind_to_predicates, i
                             edgecolor='red', linewidth=3.5)
                 )         
 
+            
+            
     # draw relations
-
-    pred_rel_inds = pred_entry['pred_rel_inds']
-    rel_scores = pred_entry['rel_scores']
-
     pred_rels = np.column_stack((pred_rel_inds, 1+rel_scores[:,1:].argmax(1)))
 
     ax.axis('off')
@@ -191,12 +203,12 @@ def visualize_pred_gt(pred_entry, gt_entry, ind_to_classes, ind_to_predicates, i
     for pred_rel in pred_rels:
         for rel in rels:
             if pred_rel[0] == rel[0] and pred_rel[1] == rel[1]:
-                if pred_rel[2] == rel[2]:
-                    u.edge(str(rel[0]), str(rel[1]), label=ind_to_predicates[rel[2]], color='forestgreen')
-                else:
-                    label_str = ind_to_predicates[pred_rel[2]] + ' (' + ind_to_predicates[rel[2]] + ')'
-                    u.edge(str(rel[0]), str(rel[1]), label=label_str, color='red')
-
+                u.edge(str(pred_rel[0]), str(pred_rel[1]), label=ind_to_predicates[pred_rel[2]], color='forestgreen')
+                '''
+                label_str = ind_to_predicates[pred_rel[2]] + ' (' + ind_to_predicates[rel[2]] + ')'
+                u.edge(str(rel[0]), str(rel[1]), label=label_str, color='red')
+                '''
+                
     for rel in rels:
         flag_rel_has_pred = False
         for pred_rel in pred_rels:
@@ -204,7 +216,7 @@ def visualize_pred_gt(pred_entry, gt_entry, ind_to_classes, ind_to_predicates, i
                 flag_rel_has_pred = True
                 break
         if not flag_rel_has_pred:
-            u.edge(str(rel[0]), str(rel[1]), label=ind_to_predicates[rel[2]], color='grey50')
+            u.edge(str(pred_rel[0]), str(pred_rel[1]), label=ind_to_predicates[pred_rel[2]], color='grey50')
     u.render(view=False, cleanup=True)
 
 
@@ -214,16 +226,10 @@ with open(args.cache_dir, 'rb') as f:
 print ('Loaded!')
     
 for i, pred_entry in enumerate(tqdm(all_pred_entries)):
-    gt_entry = {
-        'gt_classes': val.gt_classes[i].copy(),
-        'gt_relations': val.relationships[i].copy(),
-        'gt_boxes': val.gt_boxes[i].copy(),
-        'fn': val.filenames[i]
-    }
-
+    filename = test.filenames[i]
+    print (i, filename)
     # you could use these three lines of code to only visualize some images
-    # num_id = gt_entry['fn'].split('/')[-1].split('.')[-2]
     # if num_id == '2343586' or num_id == '2343599' or num_id == '2315539':
     #     visualize_pred_gt(pred_entry, gt_entry, ind_to_classes, ind_to_predicates, image_dir=image_dir, graph_dir=graph_dir, top_k=50)
     
-    visualize_pred_gt(pred_entry, gt_entry, ind_to_classes, ind_to_predicates, image_dir=image_dir, graph_dir=graph_dir, top_k=50)
+    visualize_pred_gt(pred_entry, i, filename, ind_to_classes, ind_to_predicates, image_dir=image_dir, graph_dir=graph_dir, top_k=50)
