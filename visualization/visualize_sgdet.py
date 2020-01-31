@@ -71,54 +71,106 @@ ind_to_predicates = train.ind_to_predicates
 ind_to_classes = train.ind_to_classes
 
 
-def visualize_pred_gt(pred_entry, prediction_id, filename, ind_to_classes, ind_to_predicates, image_dir, graph_dir, top_k=50, save_format='png'):
-    print (filename)
+def bb_intersection_over_union(boxA, boxB): 
+    # determine the (x, y)-coordinates of the intersection rectangle 
+    xA = max(boxA[0], boxB[0]) 
+    yA = max(boxA[1], boxB[1]) 
+    xB = min(boxA[2], boxB[2]) 
+    yB = min(boxA[3], boxB[3]) 
+
+    # compute the area of intersection rectangle 
+    interArea = max(0, xB - xA + 1) * max(0, yB - yA + 1) 
+
+    # compute the area of both the prediction and ground-truth 
+    # rectangles 
+    boxAArea = (boxA[2] - boxA[0] + 1) * (boxA[3] - boxA[1] + 1) 
+    boxBArea = (boxB[2] - boxB[0] + 1) * (boxB[3] - boxB[1] + 1) 
+
+    # compute the intersection over union by taking the intersection 
+    # area and dividing it by the sum of prediction + ground-truth 
+    # areas - the interesection area 
+    iou = interArea / float(boxAArea + boxBArea - interArea) 
+
+    # return the intersection over union value 
+    return iou
+
+
+def visualize_pred_gt(pred_entry, prediction_id, filename, ind_to_classes, ind_to_predicates, image_dir, graph_dir, top_k_rel=50, save_format='png', obj_thres=0.2, iou_thres=0.5):
     fn = filename
     im = mpimg.imread(fn)
     max_len = max(im.shape)
     scale = BOX_SCALE / max_len
     fig, ax = plt.subplots(figsize=(12, 12))
-
     ax.imshow(im, aspect='equal')
     
-    # gt groups
-    rois = pred_entry['pred_boxes']
-    rois = rois / scale
-    labels = pred_entry['pred_classes']
-    rels = pred_entry['pred_rel_inds']
-    
     # predict group
-    pred_classes = pred_entry['pred_classes']
-    pred_rel_inds = pred_entry['pred_rel_inds']
-    rel_scores = pred_entry['rel_scores']
-
-    '''
+    old_rois = pred_entry['pred_boxes']
+    old_pred_obj_scores = pred_entry['obj_scores']
+    old_pred_classes = pred_entry['pred_classes']
+    old_pred_rel_inds = pred_entry['pred_rel_inds']
+    old_rel_scores = pred_entry['rel_scores']
+    
+    # sort by obj_detect score
+    rois = old_rois.copy()
+    pred_obj_scores = old_pred_obj_scores.copy()
+    pred_classes = old_pred_classes.copy()
+    pred_rel_inds = old_pred_rel_inds.copy()
+    rel_scores = old_rel_scores.copy()
+    new_order_idx = pred_obj_scores.argsort()[::-1]
+    old2new_mapping = {}
+    for new_obj_id, order_idx in enumerate(new_order_idx):
+        rois[new_obj_id] = old_rois[order_idx]
+        pred_obj_scores[new_obj_id] = old_pred_obj_scores[order_idx]
+        pred_classes[new_obj_id] = old_pred_classes[order_idx]
+        old2new_mapping[order_idx] = new_obj_id
+    for rel_id, rel in enumerate(pred_rel_inds):
+        pred_rel_inds[rel_id][0] = old2new_mapping[rel[0]]
+        pred_rel_inds[rel_id][1] = old2new_mapping[rel[1]]
+    
+    # gt groups
+    rois = rois / scale
+    labels = pred_classes
+    
+    pred_rels = np.column_stack((pred_rel_inds, 1+rel_scores[:,1:].argmax(1)))
+    pred_rels = pred_rels[:top_k_rel]
+    
     # Filter out dupes!
-    gt_rels = np.array(rels)
     # old_size = gt_rels.shape[0]
     all_rel_sets = defaultdict(list)
-    for (o0, o1, r) in gt_rels:
+    for (o0, o1, r) in pred_rels:
         all_rel_sets[(o0, o1)].append(r)
-    gt_rels = [(k[0], k[1], np.random.choice(v)) for k,v in all_rel_sets.items()]
-    gt_rels = np.array(gt_rels)
-    rels = gt_rels
+    pred_rels = [(k[0], k[1], np.random.choice(v)) for k,v in all_rel_sets.items()]
+    pred_rels = np.array(pred_rels)
+    rels = pred_rels
     if rels.size > 0:
         rels_ = np.array(rels)
         rel_inds = rels_[:,:2].ravel().tolist()
     else:
         rel_inds = []
-    '''
-    
-    rel_inds = pred_rel_inds
     
     object_name_list = []
     obj_count = np.zeros(151, dtype=np.int32)
     object_name_list_pred = []
     obj_count_pred = np.zeros(151, dtype=np.int32)
     for i, bbox in enumerate(rois):
-        if int(labels[i]) == 0 or (i not in rel_inds):
+        skip_this = False
+        if int(labels[i]) == 0:
+            # print ('skip background!!!')
             continue
-
+        if i not in rel_inds:
+            # print ('skip box with no relation predicted!!!')
+            continue
+        if pred_obj_scores[i] < obj_thres:
+            # print ('under obj_thres!!!')
+            continue
+        for pre_bbox in rois[0:i]:
+            if bb_intersection_over_union(bbox, pre_bbox) > iou_thres:
+                # print ('over iou_thres!!!')
+                skip_this = True
+                break
+        if skip_this:
+            continue
+        
         label_str = ind_to_classes[int(labels[i])]
         while label_str in object_name_list:
             obj_count[int(labels[i])] += 1
@@ -155,8 +207,6 @@ def visualize_pred_gt(pred_entry, prediction_id, filename, ind_to_classes, ind_t
             
             
     # draw relations
-    pred_rels = np.column_stack((pred_rel_inds, 1+rel_scores[:,1:].argmax(1)))
-
     ax.axis('off')
     fig.tight_layout()
 
@@ -198,8 +248,10 @@ def visualize_pred_gt(pred_entry, prediction_id, filename, ind_to_classes, ind_t
             flag_has_node = True
     if not flag_has_node:
         return
-    pred_rels = np.column_stack((pred_rel_inds, 1+rel_scores[:,1:].argmax(1)))
-    pred_rels = pred_rels[:top_k]
+    
+#     pred_rels = np.column_stack((pred_rel_inds, 1+rel_scores[:,1:].argmax(1)))
+#     pred_rels = pred_rels[:top_k_rel]
+    
     for pred_rel in pred_rels:
         for rel in rels:
             if pred_rel[0] == rel[0] and pred_rel[1] == rel[1]:
@@ -224,12 +276,13 @@ def visualize_pred_gt(pred_entry, prediction_id, filename, ind_to_classes, ind_t
 with open(args.cache_dir, 'rb') as f:
     all_pred_entries = pkl.load(f)
 print ('Loaded!')
-    
+print ('Obj label 0 is: ', ind_to_predicates[0])
+
 for i, pred_entry in enumerate(tqdm(all_pred_entries)):
     filename = test.filenames[i]
     print (i, filename)
     # you could use these three lines of code to only visualize some images
     # if num_id == '2343586' or num_id == '2343599' or num_id == '2315539':
-    #     visualize_pred_gt(pred_entry, gt_entry, ind_to_classes, ind_to_predicates, image_dir=image_dir, graph_dir=graph_dir, top_k=50)
+    #     visualize_pred_gt(pred_entry, gt_entry, ind_to_classes, ind_to_predicates, image_dir=image_dir, graph_dir=graph_dir, top_k_rel=50)
     
-    visualize_pred_gt(pred_entry, i, filename, ind_to_classes, ind_to_predicates, image_dir=image_dir, graph_dir=graph_dir, top_k=50)
+    visualize_pred_gt(pred_entry, i, filename, ind_to_classes, ind_to_predicates, image_dir=image_dir, graph_dir=graph_dir, top_k_rel=50, obj_thres=0.2, iou_thres=0.5)
