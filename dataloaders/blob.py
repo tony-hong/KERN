@@ -67,6 +67,9 @@ class Blob(object):
         :return:
         """
         i = len(self.imgs)
+        if not d:
+            return
+        
         self.imgs.append(d['img'])
 
         h, w, scale = d['img_size']
@@ -122,9 +125,10 @@ class Blob(object):
     def reduce(self):
         """ Merges all the detections into flat lists + numbers of how many are in each"""
         if len(self.imgs) != self.batch_size_per_gpu * self.num_gpus:
-            raise ValueError("Wrong batch size? imgs len {} bsize/gpu {} numgpus {}".format(
-                len(self.imgs), self.batch_size_per_gpu, self.num_gpus
-            ))
+            return
+            #raise ValueError("Wrong batch size? imgs len {} bsize/gpu {} numgpus {}".format(
+            #    len(self.imgs), self.batch_size_per_gpu, self.num_gpus
+            #))
 
         self.imgs = Variable(torch.stack(self.imgs, 0), volatile=self.volatile)
         self.im_sizes = np.stack(self.im_sizes).reshape(

@@ -59,6 +59,9 @@ class VIST(Dataset):
         )
 
         self.filenames = load_image_filenames(image_file)
+        print ('len(self.filenames)', len(self.filenames))
+        print ('len(self.split_mask)', len(self.split_mask))
+        
         self.filenames = [self.filenames[i] for i in np.where(self.split_mask)[0]]
 
         self.ind_to_classes, self.ind_to_predicates = load_info(dict_file)
@@ -140,7 +143,10 @@ class VIST(Dataset):
         return train, val, test
 
     def __getitem__(self, index):
-        image_unpadded = Image.open(self.filenames[index]).convert('RGB')
+        try:
+            image_unpadded = Image.open(self.filenames[index]).convert('RGB')
+        except OSError: 
+            return None
 
         # Optionally flip the image if we're doing training
         flipped = self.is_train and np.random.random() > 0.5
@@ -250,12 +256,9 @@ def load_image_filenames(image_file, image_dir=VIST_IMAGES):
     with open(image_file, 'r') as f:
         im_data = json.load(f)
 
-    corrupted_ims = ['1592.jpg', '1722.jpg', '4616.jpg', '4617.jpg']
     fns = []
     for i, img in enumerate(im_data):
         basename = '{}.jpg'.format(img['image_id'])
-        if basename in corrupted_ims:
-            continue
         filename = os.path.join(image_dir, basename)
         if os.path.exists(filename):
             fns.append(filename)
