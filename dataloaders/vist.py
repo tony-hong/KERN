@@ -396,8 +396,10 @@ def vg_collate(data, num_gpus=3, is_train=False, mode='det'):
     blob = Blob(mode=mode, is_train=is_train, num_gpus=num_gpus,
                 batch_size_per_gpu=len(data) // num_gpus)
     for d in data:
-        blob.append(d)
-    blob.reduce()
+        if d:
+            blob.append(d)
+    if len(blob.imgs) > 0:
+        blob.reduce()
     return blob
 
 

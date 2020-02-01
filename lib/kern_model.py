@@ -417,7 +417,10 @@ class KERN(nn.Module):
 
     def __getitem__(self, batch):
         """ Hack to do multi-GPU training"""
-        batch.scatter()
+        if len(batch.imgs) > 0:
+            batch.scatter()
+        else: 
+            return []
 
         if self.num_gpus == 1:
             return self(*batch[0])

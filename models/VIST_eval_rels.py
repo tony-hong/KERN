@@ -61,9 +61,13 @@ all_pred_entries = []
 
 def val_batch(batch_num, b): 
     det_res = detector[b]
+    if not det_res:
+        all_pred_entries.append({})
+        return
+    
     if conf.num_gpus == 1:
         det_res = [det_res]
-
+    
     for i, (boxes_i, objs_i, obj_scores_i, rels_i, pred_scores_i) in enumerate(det_res):
         pred_entry = {
             'pred_boxes': boxes_i * BOX_SCALE/IM_SCALE,
