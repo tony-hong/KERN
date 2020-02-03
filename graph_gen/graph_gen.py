@@ -21,7 +21,6 @@ from dataloaders.vist import VISTDataLoader, VIST
 from config import VIST_IMAGES, VIST_IM_FN, VIST_SGG_FN, VIST_SGG_DICT_FN, BOX_SCALE, IM_SCALE, PROPOSAL_FN
 import argparse
 
-
 parser = argparse.ArgumentParser(description='visualization for sgdet task')
 parser.add_argument(
     '-save_dir',
@@ -43,7 +42,6 @@ args = parser.parse_args()
 os.makedirs(args.save_dir, exist_ok=True)
 image_dir = os.path.join(args.save_dir, 'images')
 graph_dir = os.path.join(args.save_dir, 'graphs')
-os.makedirs(image_dir, exist_ok=True)
 os.makedirs(graph_dir, exist_ok=True)
 mode = 'sgdet' 
 
@@ -93,6 +91,10 @@ def bb_intersection_over_union(boxA, boxB):
 def visualize_pred_gt(pred_entry, prediction_id, filename, ind_to_classes, ind_to_predicates, image_dir, graph_dir, top_k_rel=50, save_format='png', obj_thres=0.2, iou_thres=0.5):
     fn = filename
     im = mpimg.imread(fn)
+    if not im.shape:
+        print ('skipping file bcs empty image: ', prediction_id)
+        return
+    
     max_len = max(im.shape)
     scale = BOX_SCALE / max_len
     
@@ -140,12 +142,13 @@ def visualize_pred_gt(pred_entry, prediction_id, filename, ind_to_classes, ind_t
         rel_inds = rels_[:,:2].ravel().tolist()
     else:
         rel_inds = []
-
-    # draw relations
+    
+    
+    # draw graph
     sg_save_fn = os.path.join(graph_dir, fn.split('/')[-1].split('.')[-2])
     u = Digraph('sg', filename=sg_save_fn, format=save_format)
     u.attr('node', shape='box')
-    u.body.append('size="6,6"')
+    u.body.append('size="12,12"')
     u.body.append('rankdir="LR"')
 
     name_list = []
@@ -197,9 +200,8 @@ def visualize_pred_gt(pred_entry, prediction_id, filename, ind_to_classes, ind_t
         if not flag_rel_has_pred:
             u.edge(str(pred_rel[0]), str(pred_rel[1]), label=ind_to_predicates[pred_rel[2]], color='grey50')
     u.render(view=False, cleanup=False)
-
-
-
+    
+    
 with open(args.cache_dir, 'rb') as f:
     all_pred_entries = pkl.load(f)
 print ('Loaded!')
@@ -207,9 +209,16 @@ print ('Obj label 0 is: ', ind_to_predicates[0])
 
 for i, pred_entry in enumerate(tqdm(all_pred_entries)):
     filename = test.filenames[i]
-    print (i, filename)
+    
     # you could use these three lines of code to only visualize some images
     # if num_id == '2343586' or num_id == '2343599' or num_id == '2315539':
     #     visualize_pred_gt(pred_entry, gt_entry, ind_to_classes, ind_to_predicates, image_dir=image_dir, graph_dir=graph_dir, top_k_rel=50)
     
+    if pred_entry == {}:
+        print ('skipping file bcs empty entry: ', i)
+        continue
+    
     visualize_pred_gt(pred_entry, i, filename, ind_to_classes, ind_to_predicates, image_dir=image_dir, graph_dir=graph_dir, top_k_rel=50, obj_thres=0.2, iou_thres=0.5)
+    
+    
+    
