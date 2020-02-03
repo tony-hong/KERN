@@ -12,6 +12,10 @@ SAVE_PATH = os.path.join(ROOT_PATH, 'save')
 CACHE_PATH = os.path.join(ROOT_PATH, 'caches')
 CHECKPOINT_PATH = os.path.join(ROOT_PATH, 'checkpoints')
 
+PRED_PATH = os.path.join(CACHE_PATH, 'predictions')
+OBJ_FMAP_PATH = os.path.join(CACHE_PATH, 'obj_features')
+FMAP_PATH = os.path.join(CACHE_PATH, 'global_features')
+
 STANDFORD_PATH = os.path.join(DATA_PATH, 'stanford_filtered')
 
 RCNN_CHECKPOINT_FN = os.path.join(CHECKPOINT_PATH, 'vg-faster-rcnn.tar')
@@ -76,6 +80,9 @@ ANCHOR_SIZE = 16
 
 ANCHOR_RATIOS = (0.23232838, 0.63365731, 1.28478321, 3.15089189) #(0.5, 1, 2)
 ANCHOR_SCALES = (2.22152954, 4.12315647, 7.21692515, 12.60263013, 22.7102731) #(4, 8, 16, 32)
+
+MAX_PROPOSAL = 64
+
 
 class ModelConfig(object):
     """Wrapper class for model hyperparameters."""
@@ -144,6 +151,9 @@ class ModelConfig(object):
             self.cache = os.path.join(CACHE_PATH, self.cache)
         else:
             self.cache = os.path.join(CACHE_PATH, 'VIST_'+SPLIT+'_sgdet.pkl')
+            
+        self.obj_fmap = os.path.join(CACHE_PATH, 'VIST_'+SPLIT+'_obj_fmap.h5')
+        self.fmap = os.path.join(CACHE_PATH, 'VIST_'+SPLIT+'_fmap.h5')
 
         if len(self.save_dir) == 0:
             self.save_dir = None

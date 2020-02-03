@@ -6,6 +6,7 @@ from lib.pytorch_misc import optimistic_restore
 from lib.evaluation.sg_eval import BasicSceneGraphEvaluator, calculate_mR_from_evaluator_list, eval_entry
 from tqdm import tqdm
 import dill as pkl
+import h5py 
 
 from config import ModelConfig
 from config import BOX_SCALE, IM_SCALE, RCNN_CHECKPOINT_FN
@@ -58,18 +59,28 @@ if conf.mode == 'sgdet':
     
 
 all_pred_entries = []
+all_obj_fmap = {}
+all_fmap = {}
 
-def val_batch(batch_num, b): 
-    det_res = detector[b]
+if conf.obj_fmap is not None:
+    obj_fmap_f = h5py.File(conf.obj_fmap, 'w')
+        
+if conf.fmap is not None:
+    fmap_f = h5py.File(conf.fmap, 'w')
+
+detector.eval()
+for val_b, batch in enumerate(tqdm(val_loader)):
+    batch_num = conf.num_gpus*val_b
+    det_res = detector[batch]
     if not det_res:
         all_pred_entries.append({})
         print ('skipping batch: ', batch_num)
-        return
+        continue
     
     if conf.num_gpus == 1:
         det_res = [det_res]
     
-    for i, (boxes_i, objs_i, obj_scores_i, rels_i, pred_scores_i) in enumerate(det_res):
+    for i, (boxes_i, objs_i, obj_scores_i, obj_fmap_i, fmap_i, rels_i, pred_scores_i) in enumerate(det_res):
         pred_entry = {
             'pred_boxes': boxes_i * BOX_SCALE/IM_SCALE,
             'pred_classes': objs_i,
@@ -78,12 +89,24 @@ def val_batch(batch_num, b):
             'rel_scores': pred_scores_i,
         }
         all_pred_entries.append(pred_entry)
-    
-detector.eval()
-for val_b, batch in enumerate(tqdm(val_loader)):
-    val_batch(conf.num_gpus*val_b, batch)
+#         all_obj_fmap[i] = obj_fmap_i
+#         all_fmap[i] = fmap_i
+        
+        #print ('obj_scores_i.sum()', obj_scores_i.sum())
+        #print ('obj_fmap_i.sum()', obj_fmap_i.sum())
+        
+        #obj_fmap_f.create_dataset(str(batch_num), obj_fmap_i.shape, obj_fmap_i.dtype)
+        obj_fmap_f[str(batch_num)] = obj_fmap_i
+        #fmap_f.create_dataset(str(batch_num), fmap_i.shape, fmap_i.dtype)
+        fmap_f[str(batch_num)] = fmap_i
 
+        
 if conf.cache is not None:
-    with open(conf.cache,'wb') as f:
+    with open(conf.cache, 'wb') as f:
         pkl.dump(all_pred_entries, f)
+
+if obj_fmap_f:
+    obj_fmap_f.close()
+if fmap_f:
+    fmap_f.close()
 

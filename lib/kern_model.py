@@ -225,7 +225,7 @@ class KERN(nn.Module):
             mode=('proposals' if use_proposals else 'refinerels') if mode == 'sgdet' else 'gtbox',
             use_resnet=use_resnet,
             thresh=thresh,
-            max_per_img=64
+#             max_per_img=64
         )
 
 
@@ -350,12 +350,16 @@ class KERN(nn.Module):
             
         """
 
-
         result = self.detector(x, im_sizes, image_offset, gt_boxes, gt_classes, gt_rels, proposals,
                                train_anchor_inds, return_fmap=True)
+
         if result.is_none():
+            print('No result! ')
             return ValueError("heck")
 
+#         print('result.obj_fmap.shape', result.obj_fmap.shape)
+#         print('result.fmap.shape', result.fmap.shape)
+        
         im_inds = result.im_inds - image_offset
         boxes = result.rm_box_priors
 
@@ -396,8 +400,8 @@ class KERN(nn.Module):
                 obj_labels=result.rm_obj_labels if self.training or self.mode == 'predcls' else None,
                 boxes_per_cls=result.boxes_all)
 
-
         if self.training:
+#             print ('Training?!')
             return result
 
         twod_inds = arange(result.obj_preds.data) * self.num_classes + result.obj_preds.data
@@ -411,9 +415,15 @@ class KERN(nn.Module):
             bboxes = result.rm_box_priors
 
         rel_rep = F.softmax(result.rel_dists, dim=1)
-
-        return filter_dets(bboxes, result.obj_scores,
+        
+        boxes_out, objs_np, obj_scores_np, rels, pred_scores_sorted = filter_dets(bboxes, result.obj_scores,
                            result.obj_preds, rel_inds[:, 1:], rel_rep)
+        
+        obj_fmap_np = result.obj_fmap.data.cpu().numpy()
+        fmap_np = result.fmap.data.cpu().numpy()
+        
+        return (boxes_out, objs_np, obj_scores_np, obj_fmap_np, fmap_np, rels, pred_scores_sorted)
+    
 
     def __getitem__(self, batch):
         """ Hack to do multi-GPU training"""

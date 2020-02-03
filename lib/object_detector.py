@@ -6,7 +6,7 @@ import torch.nn.parallel
 from torch.autograd import Variable
 from torch.nn import functional as F
 
-from config import ANCHOR_SIZE, ANCHOR_RATIOS, ANCHOR_SCALES
+from config import ANCHOR_SIZE, ANCHOR_RATIOS, ANCHOR_SCALES, MAX_PROPOSAL
 from lib.fpn.generate_anchors import generate_anchors
 from lib.fpn.box_utils import bbox_preds, center_size, bbox_overlaps
 from lib.fpn.nms.functions.nms import apply_nms
@@ -56,7 +56,7 @@ class ObjectDetector(nn.Module):
     MODES = ('rpntrain', 'gtbox', 'refinerels', 'proposals')
 
     def __init__(self, classes, mode='rpntrain', num_gpus=1, nms_filter_duplicates=True,
-                 max_per_img=64, use_resnet=False, thresh=0.05):
+                 max_per_img=MAX_PROPOSAL, use_resnet=False, thresh=0.05):
         """
         :param classes: Object classes
         :param rel_classes: Relationship classes. None if were not using rel mode
@@ -274,7 +274,7 @@ class ObjectDetector(nn.Module):
 
     def forward(self, x, im_sizes, image_offset,
                 gt_boxes=None, gt_classes=None, gt_rels=None, proposals=None, train_anchor_inds=None,
-                return_fmap=False):
+                return_fmap=True):
         """
         Forward pass for detection
         :param x: Images@[batch_size, 3, IM_SIZE, IM_SIZE]
@@ -363,7 +363,7 @@ class ObjectDetector(nn.Module):
 
     def nms_boxes(self, obj_dists, rois, box_deltas, im_sizes):
         """
-        Performs NMS on the boxes
+        Performs Non-maximum Suppression (NMS) on the boxes
         :param obj_dists: [#rois, #classes]
         :param rois: [#rois, 5]
         :param box_deltas: [#rois, #classes, 4]
