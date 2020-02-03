@@ -63,6 +63,7 @@ def val_batch(batch_num, b):
     det_res = detector[b]
     if not det_res:
         all_pred_entries.append({})
+        print ('skipping batch: ', batch_num)
         return
     
     if conf.num_gpus == 1:

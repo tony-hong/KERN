@@ -422,8 +422,13 @@ class KERN(nn.Module):
         else: 
             return []
 
+        # using only one GPU
         if self.num_gpus == 1:
-            return self(*batch[0])
+            try:
+                result = self(*batch[0])
+            except:
+                result = []
+            return result
 
         replicas = nn.parallel.replicate(self, devices=list(range(self.num_gpus)))
         outputs = nn.parallel.parallel_apply(replicas, [batch[i] for i in range(self.num_gpus)])
