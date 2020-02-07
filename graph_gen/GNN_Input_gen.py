@@ -38,6 +38,14 @@ parser.add_argument(
     default='caches/kern_sgdet.pkl'
 )
 
+parser.add_argument(
+    '-split',
+    dest='split',
+    help='specify the split',
+    type=str,
+    default='VIST_example'
+)
+
 args = parser.parse_args()
 os.makedirs(args.save_dir, exist_ok=True)
 image_dir = os.path.join(args.save_dir, 'images')
@@ -64,6 +72,8 @@ _, test_loader = VISTDataLoader.splits(test, test, mode='rel',
                                             num_gpus=1)
 ind_to_predicates = train.ind_to_predicates
 ind_to_classes = train.ind_to_classes
+
+new2old_mapping_dict = {}
 
 
 def bb_intersection_over_union(boxA, boxB): 
@@ -93,12 +103,12 @@ def bb_intersection_over_union(boxA, boxB):
 def visualize_pred_gt(pred_entry, prediction_id, filename, ind_to_classes, ind_to_predicates, image_dir, graph_dir, top_k_rel=50, save_format='png', obj_thres=0.2, iou_thres=0.5):
     fn = filename
     imgID = fn.split('/')[-1].split('.')[0]
-    print (imgID)
+    # print (imgID)
     
     im = mpimg.imread(fn)
     if not im.shape:
         print ('skipping file bcs empty image: ', prediction_id)
-        return [], [], [], [], [], []
+        return '', '', '', '', ''
     
     max_len = max(im.shape)
     scale = BOX_SCALE / max_len
@@ -157,20 +167,20 @@ def visualize_pred_gt(pred_entry, prediction_id, filename, ind_to_classes, ind_t
     
     # draw graph
     sg_save_fn = os.path.join(graph_dir, fn.split('/')[-1].split('.')[-2])
-    u = Digraph('sg', filename=sg_save_fn, format=save_format)
-    u.attr('node', shape='box')
-    u.body.append('size="12,12"')
-    u.body.append('rankdir="LR"')
+    #u = Digraph('sg', filename=sg_save_fn, format=save_format)
+    #u.attr('node', shape='box')
+    #u.body.append('size="12,12"')
+    #u.body.append('rankdir="LR"')
     
     # init GNN input
     nodes_list = [imgID]
     labels_list = []
     node1_list = []
     node2_list = []
-    node_label_list = ['0']
+    node_label_list = ['background']
     
     # add backgroup
-    u.node('0', label=imgID, color='forestgreen')
+    #u.node('0', label=imgID, color='forestgreen')
     name_list = []
     name_list_pred = []
     flag_has_node = False
@@ -200,17 +210,19 @@ def visualize_pred_gt(pred_entry, prediction_id, filename, ind_to_classes, ind_t
             node1_list.append('0')
             # child
             node2_list.append(str(id_w_background))
-            node_label_list.append(id_w_background)
+            
+            node_label = ind_to_classes[pred_classes[i]]
+            node_label_list.append(node_label)
             
             # PROOFREAD of object labels
             # label_by_old_id = ind_to_classes[old_pred_classes[old_id]]
             # u.node(str(id_w_background), label=obj_name_pred+' ('+ node + ')'+' ('+ label_by_old_id + ')', color='forestgreen')
-            u.node(str(id_w_background), label=obj_name_pred+' ('+ node + ')', color='forestgreen')
-            u.edge('0', str(id_w_background), label='near', color='forestgreen')
+            #u.node(str(id_w_background), label=obj_name_pred+' ('+ node + ')', color='forestgreen')
+            #u.edge('0', str(id_w_background), label='near', color='forestgreen')
             
             flag_has_node = True
     if not flag_has_node:
-        return [], [], [], [], [], []
+        return '', '', '', '', ''
     
     for pred_rel in pred_rels: 
         if pred_rel[0] in rel_inds and pred_rel[1] in rel_inds and pred_rel[0] not in obj_thres_filtered and pred_rel[1] not in obj_thres_filtered:
@@ -220,16 +232,23 @@ def visualize_pred_gt(pred_entry, prediction_id, filename, ind_to_classes, ind_t
 
             labels_list.append(edge_label)
             # parent
-            node1_list.append(id0_w_background)
+            node1_list.append(str(id0_w_background))
             # child
-            node2_list.append(id1_w_background)
+            node2_list.append(str(id1_w_background))
             
-            u.edge(str(id0_w_background), str(id1_w_background), label=edge_label, color='forestgreen')
+            #u.edge(str(id0_w_background), str(id1_w_background), label=edge_label, color='forestgreen')
     
-    u.render(view=False, cleanup=False)
+    # u.render(view=False, cleanup=False)
     
-    return node_label_list, nodes_list, labels_list, node1_list, node2_list, new2old_mapping
-
+    node_label_s = '\t'.join(node_label_list)
+    nodes_s = '\t'.join(nodes_list)
+    labels_s = '\t'.join(labels_list)
+    node1_s = '\t'.join(node1_list)
+    node2_s = '\t'.join(node2_list)
+    
+    new2old_mapping_dict[imgID] = new2old_mapping
+    
+    return node_label_s, nodes_s, labels_s, node1_s, node2_s
 
     
 with open(args.cache_dir, 'rb') as f:
@@ -237,64 +256,63 @@ with open(args.cache_dir, 'rb') as f:
 print ('Loaded!')
 print ('Obj label 0 is: ', ind_to_predicates[0])
 
+all_node_label_list = []
+all_nodes_list = []
+all_labels_list = []
+all_node1_list = []
+all_node2_list = []
 for i, pred_entry in enumerate(tqdm(all_pred_entries)):
     filename = test.filenames[i]
-    
-    # you could use these three lines of code to only visualize some images
-    # if num_id == '2343586' or num_id == '2343599' or num_id == '2315539':
-    #     visualize_pred_gt(pred_entry, gt_entry, ind_to_classes, ind_to_predicates, image_dir=image_dir, graph_dir=graph_dir, top_k_rel=50)
-    
     if pred_entry == {}:
         print ('skipping file bcs empty entry: ', i)
         continue
-    
-    node_label_list, nodes_list, labels_list, node1_list, node2_list, new2old_mapping = visualize_pred_gt(pred_entry, i, filename, ind_to_classes, ind_to_predicates, image_dir=image_dir, graph_dir=graph_dir, top_k_rel=50, obj_thres=0.2, iou_thres=0.5)
-    
-    
-    
-    
-# print ('All properties: ', all_property_keys)
+    node_label_s, nodes_s, labels_s, node1_s, node2_s = visualize_pred_gt(pred_entry, i, filename, ind_to_classes, ind_to_predicates, image_dir=image_dir, graph_dir=graph_dir, top_k_rel=50, obj_thres=0.2, iou_thres=0.5)
+    all_node_label_list.append(node_label_s)
+    all_nodes_list.append(nodes_s)
+    all_labels_list.append(labels_s)
+    all_node1_list.append(node1_s)
+    all_node2_list.append(node2_s)
 
-# print ('writing input data...')
-# input_file_stream = '\n'.join(result_input_list)
-# input_file_stream += '\n'
-# with open(input_file_fn, 'w',  encoding='utf8') as f:
-#     f.write(input_file_stream)
+# print (all_node_label_list)
 
-# # do it in lower bcs. the eval is also in lower
-# print ('writing output data...')
-# output_file_stream = '\n'.join(result_output_list)
-# output_file_stream += '\n'
-# with open(output_file_fn, 'w', encoding='utf8') as f:
-#     f.write(output_file_stream.lower())        
+input_file_fn = os.path.join(GNN_input_dir, args.split + '_inputs.txt')
+nodes_file_fn = os.path.join(GNN_input_dir, args.split + '_nodes.txt')
+labels_file_fn = os.path.join(GNN_input_dir, args.split + '_labels.txt')
+node1s_file_fn = os.path.join(GNN_input_dir, args.split + '_node1s.txt')
+node2s_file_fn = os.path.join(GNN_input_dir, args.split + '_node2s.txt')
+new2old_file_fn = os.path.join(GNN_input_dir, args.split + '_new2old.pkl')
+
+print ('writing input data...')
+input_file_stream = '\n'.join(all_node_label_list)
+input_file_stream += '\n'
+with open(input_file_fn, 'w',  encoding='utf8') as f:
+    f.write(input_file_stream)      
         
-# # write GNN graph files
-# print ('writing output nodes...')
-# nodes_file_stream = '\n'.join(nodes_list)
-# nodes_file_stream += '\n'
-# with open(nodes_file_fn, 'w', encoding='utf8') as f:
-#     f.write(nodes_file_stream)
+# write GNN graph files
+print ('writing output nodes...')
+nodes_file_stream = '\n'.join(all_nodes_list)
+nodes_file_stream += '\n'
+with open(nodes_file_fn, 'w', encoding='utf8') as f:
+    f.write(nodes_file_stream)
 
-# print ('writing output feats...')
-# feats_file_stream = '\n'.join(feats_list)
-# feats_file_stream += '\n'
-# with open(feats_file_fn, 'w', encoding='utf8') as f:
-#     f.write(feats_file_stream)
+print ('writing output labels...')
+labels_file_stream = '\n'.join(all_labels_list)
+labels_file_stream += '\n'
+with open(labels_file_fn, 'w') as f:
+    f.write(labels_file_stream)
 
-# print ('writing output labels...')
-# labels_file_stream = '\n'.join(labels_list)
-# labels_file_stream += '\n'
-# with open(labels_file_fn, 'w') as f:
-#     f.write(labels_file_stream)
+print ('writing output node1...')
+node1s_file_stream = '\n'.join(all_node1_list)
+node1s_file_stream += '\n'
+with open(node1s_file_fn, 'w') as f:
+    f.write(node1s_file_stream)
 
-# print ('writing output node1...')
-# node1s_file_stream = '\n'.join(node1s_list)
-# node1s_file_stream += '\n'
-# with open(node1s_file_fn, 'w') as f:
-#     f.write(node1s_file_stream)
+print ('writing output node2...')
+node2s_file_stream = '\n'.join(all_node2_list)
+node2s_file_stream += '\n'
+with open(node2s_file_fn, 'w') as f:
+    f.write(node2s_file_stream)
 
-# print ('writing output node2...')
-# node2s_file_stream = '\n'.join(node2s_list)
-# node2s_file_stream += '\n'
-# with open(node2s_file_fn, 'w') as f:
-#     f.write(node2s_file_stream)
+with open(new2old_file_fn, 'wb') as f:
+    pkl.dump(new2old_mapping_dict, f)
+
