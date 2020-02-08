@@ -5,6 +5,7 @@
 from collections import defaultdict
 import gc 
 import os
+import json
 
 from graphviz import Digraph
 import numpy as np
@@ -256,6 +257,7 @@ with open(args.cache_dir, 'rb') as f:
 print ('Loaded!')
 print ('Obj label 0 is: ', ind_to_predicates[0])
 
+GCN_input_dict = {}
 all_node_label_list = []
 all_nodes_list = []
 all_labels_list = []
@@ -263,6 +265,8 @@ all_node1_list = []
 all_node2_list = []
 for i, pred_entry in enumerate(tqdm(all_pred_entries)):
     filename = test.filenames[i]
+    imgID = filename.split('/')[-1].split('.')[0]
+    
     if pred_entry == {}:
         print ('skipping file bcs empty entry: ', i)
         continue
@@ -272,47 +276,61 @@ for i, pred_entry in enumerate(tqdm(all_pred_entries)):
     all_labels_list.append(labels_s)
     all_node1_list.append(node1_s)
     all_node2_list.append(node2_s)
-
+    
+    GCN_input = {}
+    GCN_input['node_label'] = node_label_s
+    GCN_input['node'] = nodes_s
+    GCN_input['edge_label'] = labels_s
+    GCN_input['parent_idx'] = node1_s
+    GCN_input['child_idx'] = node2_s
+    GCN_input_dict[imgID] = GCN_input
+    
+    
 # print (all_node_label_list)
 
-input_file_fn = os.path.join(GNN_input_dir, args.split + '_inputs.txt')
-nodes_file_fn = os.path.join(GNN_input_dir, args.split + '_nodes.txt')
-labels_file_fn = os.path.join(GNN_input_dir, args.split + '_labels.txt')
-node1s_file_fn = os.path.join(GNN_input_dir, args.split + '_node1s.txt')
-node2s_file_fn = os.path.join(GNN_input_dir, args.split + '_node2s.txt')
-new2old_file_fn = os.path.join(GNN_input_dir, args.split + '_new2old.pkl')
+input_fp = os.path.join(GNN_input_dir, args.split + '_inputs.txt')
+nodes_fp = os.path.join(GNN_input_dir, args.split + '_nodes.txt')
+labels_fp = os.path.join(GNN_input_dir, args.split + '_labels.txt')
+node1s_fp = os.path.join(GNN_input_dir, args.split + '_node1s.txt')
+node2s_fp = os.path.join(GNN_input_dir, args.split + '_node2s.txt')
+new2old_fp = os.path.join(GNN_input_dir, args.split + '_new2old.pkl')
+GCN_input_dict_fp = os.path.join(GNN_input_dir, args.split + '_GCN_input_dict.pkl')
 
 print ('writing input data...')
 input_file_stream = '\n'.join(all_node_label_list)
 input_file_stream += '\n'
-with open(input_file_fn, 'w',  encoding='utf8') as f:
+with open(input_fp, 'w',  encoding='utf8') as f:
     f.write(input_file_stream)      
         
 # write GNN graph files
 print ('writing output nodes...')
 nodes_file_stream = '\n'.join(all_nodes_list)
 nodes_file_stream += '\n'
-with open(nodes_file_fn, 'w', encoding='utf8') as f:
+with open(nodes_fp, 'w', encoding='utf8') as f:
     f.write(nodes_file_stream)
 
 print ('writing output labels...')
 labels_file_stream = '\n'.join(all_labels_list)
 labels_file_stream += '\n'
-with open(labels_file_fn, 'w') as f:
+with open(labels_fp, 'w') as f:
     f.write(labels_file_stream)
 
 print ('writing output node1...')
 node1s_file_stream = '\n'.join(all_node1_list)
 node1s_file_stream += '\n'
-with open(node1s_file_fn, 'w') as f:
+with open(node1s_fp, 'w') as f:
     f.write(node1s_file_stream)
 
 print ('writing output node2...')
 node2s_file_stream = '\n'.join(all_node2_list)
 node2s_file_stream += '\n'
-with open(node2s_file_fn, 'w') as f:
+with open(node2s_fp, 'w') as f:
     f.write(node2s_file_stream)
 
-with open(new2old_file_fn, 'wb') as f:
+with open(new2old_fp, 'wb') as f:
     pkl.dump(new2old_mapping_dict, f)
 
+with open(GCN_input_dict_fp, 'wb') as f:
+    pkl.dump(GCN_input_dict, f)
+    
+    
