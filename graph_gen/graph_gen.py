@@ -205,7 +205,8 @@ def visualize_pred_gt(pred_entry, prediction_id, filename, ind_to_classes, ind_t
             # PROOFREAD of object labels
             # label_by_old_id = ind_to_classes[old_pred_classes[old_id]]
             # u.node(str(id_w_background), label=obj_name_pred+' ('+ node + ')'+' ('+ label_by_old_id + ')', color='forestgreen')
-            u.node(str(id_w_background), label=obj_name_pred+' ('+ node + ')', color='forestgreen')
+            #u.node(str(id_w_background), label=obj_name_pred+' ('+ node + ')', color='forestgreen')
+            u.node(str(id_w_background), label=obj_name_pred, color='forestgreen')
             u.edge('0', str(id_w_background), label='near', color='forestgreen')
             
             flag_has_node = True
